@@ -22,38 +22,51 @@ namespace RevitAPITrainingReadWrite
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            openFileDialog.Filter = "All files (*.*)|*.*";
+
+            string filePath = string.Empty;
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                filePath = openFileDialog.FileName;
+            }
+
+            if (string.IsNullOrEmpty(filePath))
+                return Result.Cancelled;
+
+            var lines = File.ReadAllLines(filePath).ToList();
+
+            List<RoomData> roomDataList = new List<RoomData>();
+            foreach (var line in lines)
+            {
+                List<string> values = line.Split(';').ToList();
+                roomDataList.Add(new RoomData
+                {
+                    Name = values[0],
+                    Number = values[1]
+                });
+            }
+
             string roomInfo = string.Empty;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .Cast<Room>()
                 .ToList();
-
-            foreach (Room room in rooms)
+            
+            using (var ts = new Transaction(doc, "Set parameters"))
             {
-                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME).AsString();
-                roomInfo += $"{roomName}\t{room.Number}\t{room.Area}{Environment.NewLine}";
+                ts.Start();
+                foreach (RoomData roomData in roomDataList)
+                {
+                    Room room = rooms.FirstOrDefault(r => r.Number.Equals(roomData.Number));
+                    if (room == null)
+                        continue;
+                    room.get_Parameter(BuiltInParameter.ROOM_NAME).Set(roomData.Name);
+                }
+                ts.Commit();
             }
-
-            var saveDialog = new SaveFileDialog
-            {
-                OverwritePrompt = true,
-                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                Filter = "All foles (*.*)|*.*",
-                FileName = "roomInfo.csv",
-                DefaultExt = ".csv"
-            };
-
-            string selectedFilePath = string.Empty;
-            if (saveDialog.ShowDialog() == DialogResult.OK)
-            {
-                selectedFilePath = saveDialog.FileName;
-            }
-
-            if (string.IsNullOrEmpty(selectedFilePath))
-                return Result.Cancelled;
-
-            File.WriteAllText(selectedFilePath, roomInfo);
 
             return Result.Succeeded;
         }
