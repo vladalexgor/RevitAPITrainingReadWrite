@@ -1,9 +1,11 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,12 +21,23 @@ namespace RevitAPITrainingReadWrite
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
-            var ducts = new FilteredElementCollector(doc)
-                .OfClass(typeof(Duct))
-                .Cast<Duct>()
+            string roomInfo = string.Empty;
+
+            var rooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .Cast<Room>()
                 .ToList();
 
-            TaskDialog.Show("Количество воздуховодов", ducts.Count.ToString());
+            foreach (Room room in rooms)
+            {
+                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME).AsString();
+                roomInfo += $"{roomName}\t{room.Number}\t{room.Area}{Environment.NewLine}";
+            }
+
+            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string csvPath = Path.Combine(desktopPath, "roomInfo.csv");
+
+            File.WriteAllText(csvPath, roomInfo);
 
             return Result.Succeeded;
         }
