@@ -24,34 +24,64 @@ namespace RevitAPITrainingReadWrite
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
-            string roomInfo = string.Empty;
+            OpenFileDialog openFileDialog1 = new OpenFileDialog
+            {
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                Filter = "Excel files(*.xlsx) | *.xlsx"
+            };
+
+            string filePath = string.Empty;
+            if (openFileDialog1.ShowDialog() == DialogResult.OK)
+            {
+                filePath = openFileDialog1.FileName;
+            }
+
+            if (string.IsNullOrEmpty(filePath))
+                return Result.Cancelled;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .Cast<Room>()
                 .ToList();
 
-            string excelPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "rooms.xlsx");
-
-            using (FileStream stream = new FileStream(excelPath, FileMode.Create, FileAccess.Write))
+            using (FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = workbook.CreateSheet("Лист1");
+                IWorkbook workbook = new XSSFWorkbook(filePath);
+                ISheet sheet = workbook.GetSheetAt(index: 0);
 
                 int rowIndex = 0;
-                foreach (var room in rooms)
+                while (sheet.GetRow(rowIndex) != null)
                 {
-                    sheet.SetCellValue(rowIndex, columnIndex: 0, room.Name);
-                    sheet.SetCellValue(rowIndex, columnIndex: 1, room.Number);
-                    sheet.SetCellValue(rowIndex, columnIndex: 2, room.Area);
+                    if (sheet.GetRow(rowIndex).GetCell(0) == null ||
+                        sheet.GetRow(rowIndex).GetCell(1) == null)
+                    {
+                        rowIndex++;
+                        continue;
+                    }
+
+
+                    string name = sheet.GetRow(rowIndex).GetCell(0).StringCellValue;
+                    string number = sheet.GetRow(rowIndex).GetCell(1).StringCellValue;
+
+                    var room = rooms.FirstOrDefault(r => r.Number.Equals(number));
+
+                    if (room == null)
+                    {
+                        rowIndex++;
+                        continue;
+                    }
+
+
+                    using (var ts = new Transaction(doc, "Set parameter"))
+                    {
+                        ts.Start();
+                        room.get_Parameter(BuiltInParameter.ROOM_NAME).Set(name);
+                        ts.Commit();
+                    }
+
                     rowIndex++;
                 }
-
-                workbook.Write(stream);
-                workbook.Close();
             }
-
-            System.Diagnostics.Process.Start(excelPath);
 
             return Result.Succeeded;
         }
