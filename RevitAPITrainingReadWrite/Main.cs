@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace RevitAPITrainingReadWrite
 {
@@ -34,10 +35,25 @@ namespace RevitAPITrainingReadWrite
                 roomInfo += $"{roomName}\t{room.Number}\t{room.Area}{Environment.NewLine}";
             }
 
-            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string csvPath = Path.Combine(desktopPath, "roomInfo.csv");
+            var saveDialog = new SaveFileDialog
+            {
+                OverwritePrompt = true,
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                Filter = "All foles (*.*)|*.*",
+                FileName = "roomInfo.csv",
+                DefaultExt = ".csv"
+            };
 
-            File.WriteAllText(csvPath, roomInfo);
+            string selectedFilePath = string.Empty;
+            if (saveDialog.ShowDialog() == DialogResult.OK)
+            {
+                selectedFilePath = saveDialog.FileName;
+            }
+
+            if (string.IsNullOrEmpty(selectedFilePath))
+                return Result.Cancelled;
+
+            File.WriteAllText(selectedFilePath, roomInfo);
 
             return Result.Succeeded;
         }
