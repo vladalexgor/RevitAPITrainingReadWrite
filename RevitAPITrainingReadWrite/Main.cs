@@ -25,24 +25,31 @@ namespace RevitAPITrainingReadWrite
             UIDocument uidoc = uiapp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                Filter = "Json files (*.json) | *.json"
+            };
+
+            string filePath = string.Empty;
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                filePath = openFileDialog.FileName;
+            }
+
+            if (string.IsNullOrEmpty(filePath))
+                return Result.Cancelled;
+
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .Cast<Room>()
                 .ToList();
 
-            var roomDataList = new List<RoomData>();
-            foreach (var room in rooms)
-            {
-                roomDataList.Add(new RoomData
-                {
-                    Name = room.Name,
-                    Number = room.Number
-                });
-            }
+            
+            string json = File.ReadAllText(filePath);
+            List<RoomData> roomDataList = JsonConvert.DeserializeObject<List<RoomData>>(json);
 
-            string json = JsonConvert.SerializeObject(roomDataList, Formatting.Indented);
-
-            File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "data.json"), json);
+            //Нужно доделать приложение: замена наименования помещений в модели согласно данным из Json
 
             return Result.Succeeded;
         }
